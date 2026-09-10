@@ -1,4 +1,3 @@
-[README.md](https://github.com/user-attachments/files/32064399/README.md)
 # S3D ISO Weekly Case Closure Report — Dash App
 
 An interactive browser-based dashboard for the S3D Isometric case closure report.
