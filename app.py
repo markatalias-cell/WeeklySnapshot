@@ -215,12 +215,14 @@ app.layout = html.Div([
             ], md=4),
         ], className='g-3'),
         dbc.Row([
+            dbc.Col(width=4),
             dbc.Col([
                 dbc.Button('Generate Report', id='btn-generate', color='primary', size='lg',
                            className='w-100 mt-3', disabled=True,
                            style={'background':C['blue'],'border':'none','fontWeight':600}),
                 html.Div(id='generate-status', style={'marginTop':'8px','fontSize':'0.85rem','textAlign':'center'}),
-            ], md=4, offset=4),
+            ], md=4),
+            dbc.Col(width=4),
         ]),
     ], style={'padding':'24px 30px','background':'#F8FBFF','borderBottom':'1px solid #D6E8F7'}),
 
