@@ -381,8 +381,7 @@ def generate(n_clicks, f1, f2, f3):
         filter_action='native',
         sort_action='native',
         page_size=20,
-        tooltip_data=[{c: {'value': str(row[c]), 'type':'markdown'} for c in case_cols} for row in df3_disp[case_cols].to_dict('records')],
-        tooltip_duration=None,
+
     )
 
     # ── PARENT CASES TABLE ────────────────────────────────────────
@@ -505,16 +504,11 @@ def generate(n_clicks, f1, f2, f3):
                     ]),
                     html.Hr(style={'borderColor':'#D6E8F7','margin':'24px 0'}),
                     html.Div([
-                        dbc.Row([
-                            dbc.Col(html.H5('Case Detail — This Week',
-                                    style={'color':C['blue'],'fontWeight':700}), md=8),
-                            dbc.Col(dbc.ButtonGroup([
-                                dbc.Button('All Cases', id='filter-all', size='sm', outline=True, color='primary', active=True),
-                                dbc.Button('Outliers Only', id='filter-outliers', size='sm', outline=True, color='danger'),
-                                dbc.Button('Open Parents', id='filter-open', size='sm', outline=True, color='warning'),
-                            ]), md=4, className='text-end'),
-                        ], className='align-items-center mb-3'),
-                        html.Div(id='case-detail-container', children=detail_table),
+                        html.H5('Case Detail — This Week',
+                                style={'color':C['blue'],'fontWeight':700,'marginBottom':'12px'}),
+                        html.P('Use the column filter row (▽) to filter by owner, status or outlier. Click column headers to sort.',
+                               style={'fontSize':'0.8rem','color':C['grey'],'marginBottom':'8px','fontStyle':'italic'}),
+                        detail_table,
                     ]),
                     html.P(f"Parent UCL={UCL['Parent_TTR_Days']}d (all {d['df1_count']:,} parent cases) · Helper UCL={UCL['Helper_TTR_Days']}d · Time to File UCL={UCL['Time_to_File']}d · H→P Gap UCL={UCL['HP_Gap']}d",
                            style={'fontSize':'0.75rem','color':C['grey'],'fontStyle':'italic','marginTop':'12px'}),
@@ -598,82 +592,6 @@ def generate(n_clicks, f1, f2, f3):
 
     return None, dashboard, {'display':'block'}, html.Span('✅ Report generated successfully', style={'color':C['green']})
 
-
-# ─────────────────────────────────────────────────────────────────
-# FILTER BUTTONS CALLBACK
-# ─────────────────────────────────────────────────────────────────
-@app.callback(
-    Output('case-detail-container','children'),
-    Output('filter-all','active'),
-    Output('filter-outliers','active'),
-    Output('filter-open','active'),
-    Input('filter-all','n_clicks'),
-    Input('filter-outliers','n_clicks'),
-    Input('filter-open','n_clicks'),
-    State('upload-f1','contents'),
-    State('upload-f2','contents'),
-    State('upload-f3','contents'),
-    prevent_initial_call=True)
-def filter_cases(n_all, n_out, n_open, f1, f2, f3):
-    ctx = callback_context
-    if not ctx.triggered or not f1 or not f2 or not f3:
-        return dash.no_update, True, False, False
-
-    triggered = ctx.triggered[0]['prop_id'].split('.')[0]
-
-    try:
-        d   = process_data(parse_upload(f1), parse_upload(f2), parse_upload(f3))
-        df3 = d['df3']
-        UCL = d['UCL']
-        ML  = d['ML']
-    except:
-        return dash.no_update, True, False, False
-
-    if triggered == 'filter-outliers':
-        df3 = df3[df3['Is Outlier']]
-        active = (False, True, False)
-    elif triggered == 'filter-open':
-        open_statuses = ['Waiting on Customer','Waiting on Analyst','Open Dev Item']
-        df3 = df3[df3['Parent Case: Status'].isin(open_statuses)]
-        active = (False, False, True)
-    else:
-        active = (True, False, False)
-
-    df3_disp = df3.sort_values('Date/Time Closed').copy()
-    df3_disp['Parent Case'] = df3_disp['Parent Case'].apply(lambda x: str(int(x)) if pd.notna(x) else '')
-    df3_disp['Closed']      = df3_disp['Date/Time Closed'].dt.strftime('%d/%m/%Y %H:%M')
-    df3_disp['Parent Age']  = df3_disp['Parent_TTR_Days'].apply(lambda x: f"{x:.1f}d" if pd.notna(x) else '—')
-    df3_disp['Helper Age']  = df3_disp['Helper_TTR_Days'].apply(lambda x: f"{x:.1f}d" if pd.notna(x) else '—')
-    df3_disp['Time to File']= df3_disp['Time_to_File'].apply(lambda x: f"{x:.1f}d" if pd.notna(x) else '—')
-    df3_disp['H→P Gap']     = df3_disp['HP_Gap'].apply(lambda x: f"{x:.1f}d" if pd.notna(x) else '—')
-    df3_disp['Outlier']     = df3_disp['Outlier Flags'].apply(lambda x: x if x else '—')
-    df3_disp['Dev Item']    = df3_disp['Parent Case: Dev Item Number'].apply(lambda x: str(int(x)) if pd.notna(x) else '—')
-
-    case_cols = ['Case Number','Parent Case','Case Owner','Case : Parent Case : Owner FullName',
-                 'Closed','Parent Age','Helper Age','Time to File','H→P Gap','Parent Case: Status','Dev Item','Outlier']
-    col_labels = {'Case Number':'Helper Case','Case : Parent Case : Owner FullName':'Parent Owner','Parent Case: Status':'Status'}
-
-    if len(df3_disp) == 0:
-        msg = 'No outlier cases this week.' if triggered=='filter-outliers' else 'No cases with open parents.'
-        table = html.P(msg, style={'color':C['grey'],'fontStyle':'italic','padding':'12px'})
-    else:
-        table = dash_table.DataTable(
-            data=df3_disp[case_cols].to_dict('records'),
-            columns=[{'name':col_labels.get(c,c),'id':c} for c in case_cols],
-            style_table={'overflowX':'auto'},
-            style_header={'backgroundColor':C['blue'],'color':'white','fontWeight':'bold','textAlign':'center','fontSize':'11px'},
-            style_cell={'textAlign':'center','fontSize':'12px','padding':'7px 10px','border':'1px solid #D6E8F7','whiteSpace':'normal'},
-            style_cell_conditional=[
-                {'if':{'column_id':'Case Owner'},'textAlign':'left'},
-                {'if':{'column_id':'Case : Parent Case : Owner FullName'},'textAlign':'left'},
-            ],
-            style_data_conditional=[
-                {'if':{'filter_query':'{Outlier} != "—"'},'backgroundColor':'#FFCCCC','fontWeight':'bold'},
-                {'if':{'row_index':'odd'},'backgroundColor':C['stripe']},
-            ],
-            filter_action='native', sort_action='native', page_size=20)
-
-    return table, *active
 
 
 if __name__ == '__main__':
