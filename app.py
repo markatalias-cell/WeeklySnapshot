@@ -55,7 +55,7 @@ def clean_df(df, date_cols=None):
 
 def calc_ucl(s):
     q1, q3 = s.quantile(0.25), s.quantile(0.75)
-    return round(q3 + 1.5*(q3-q1), 1)
+    return float(round(q3 + 1.5*(q3-q1), 1))
 
 def process_data(df1_raw, df2_raw, df3_raw):
     DC = ['Date/Time Opened','Date/Time Closed',
@@ -86,13 +86,13 @@ def process_data(df1_raw, df2_raw, df3_raw):
           'Time_to_File':'Time to File Helper','HP_Gap':'Helper→Parent Gap'}
 
     UCL = {
-        'Parent_TTR_Days': calc_ucl(df1['Parent_TTR_Days']),
-        'Helper_TTR_Days': calc_ucl(df2['Helper_TTR_Days']),
-        'Time_to_File':    calc_ucl(df2['Time_to_File']),
-        'HP_Gap':          calc_ucl(df2['HP_Gap']),
+        'Parent_TTR_Days': float(calc_ucl(df1['Parent_TTR_Days'])),
+        'Helper_TTR_Days': float(calc_ucl(df2['Helper_TTR_Days'])),
+        'Time_to_File':    float(calc_ucl(df2['Time_to_File'])),
+        'HP_Gap':          float(calc_ucl(df2['HP_Gap'])),
     }
-    MED = {m: round(df2[m].median(),1) for m in METRICS}
-    AVG = {m: round(df2[m].mean(),1)   for m in METRICS}
+    MED = {m: float(round(df2[m].median(),1)) for m in METRICS}
+    AVG = {m: float(round(df2[m].mean(),1))   for m in METRICS}
 
     # Outlier flags
     df3['Outlier Flags'] = ''
@@ -322,8 +322,8 @@ def generate(n_clicks, f1, f2, f3):
     # ── METRIC COMPARISON TABLE ───────────────────────────────────
     bench_rows = []
     for m in METRICS:
-        wk_avg = round(df3[m].mean(),1); wk_med = round(df3[m].median(),1)
-        da = round(wk_avg-AVG[m],1);    dm = round(wk_med-MED[m],1)
+        wk_avg = float(round(df3[m].mean(),1)); wk_med = float(round(df3[m].median(),1))
+        da = float(round(wk_avg-AVG[m],1));    dm = float(round(wk_med-MED[m],1))
         breach = wk_med > UCL[m]; above = dm > 0 and not breach
         if breach:  status='🔴 Above UCL';     bg=C['outlier']
         elif above: status='🟠 Above median';  bg=C['warn']
@@ -364,7 +364,7 @@ def generate(n_clicks, f1, f2, f3):
 
     detail_table = dash_table.DataTable(
         id='case-detail-table',
-        data=df3_disp[case_cols].to_dict('records'),
+        data=df3_disp[case_cols].astype(str).replace({'nan':'—','<NA>':'—'}).to_dict('records'),
         columns=[{'name':col_labels.get(c,c),'id':c} for c in case_cols],
         style_table={'overflowX':'auto'},
         style_header={'backgroundColor':C['blue'],'color':'white','fontWeight':'bold','textAlign':'center','fontSize':'11px'},
@@ -404,7 +404,7 @@ def generate(n_clicks, f1, f2, f3):
         d = d.rename(columns={'Account Name':'Account'})
         cols = [c.replace('Account Name','Account') for c in cols]
         return dash_table.DataTable(
-            data=d[cols].to_dict('records'),
+            data=d[cols].fillna('—').astype(str).replace({'nan':'—','<NA>':'—','True':'🔴 Yes','False':'—'}).to_dict('records'),
             columns=[{'name':c,'id':c} for c in cols],
             style_table={'overflowX':'auto'},
             style_header={'backgroundColor':C['blue2'] if has_helper else '#889DB5','color':'white','fontWeight':'bold','textAlign':'center','fontSize':'11px'},
@@ -521,13 +521,13 @@ def generate(n_clicks, f1, f2, f3):
                         dbc.Col(dbc.Card(dbc.CardBody([
                             html.P('With Helper', style={'fontSize':'0.75rem','color':C['grey'],'margin':0,'fontWeight':600}),
                             html.H3(str(len(pw_with)), style={'color':C['blue2'],'margin':0,'fontWeight':700}),
-                            html.P(f"Avg {pw_with['Parent_TTR_Days'].mean():.1f}d · Med {pw_with['Parent_TTR_Days'].median():.1f}d" if len(pw_with)>0 else 'No cases',
+                            html.P(f"Avg {float(pw_with['Parent_TTR_Days'].mean()):.1f}d · Med {float(pw_with['Parent_TTR_Days'].median()):.1f}d" if len(pw_with)>0 else 'No cases',
                                    style={'fontSize':'0.8rem','color':C['grey'],'margin':0}),
                         ]), style={**CARD_STYLE,'borderLeft':f'4px solid {C["blue2"]}'}), md=3),
                         dbc.Col(dbc.Card(dbc.CardBody([
                             html.P('Without Helper', style={'fontSize':'0.75rem','color':C['grey'],'margin':0,'fontWeight':600}),
                             html.H3(str(len(pw_wo)), style={'color':'#889DB5','margin':0,'fontWeight':700}),
-                            html.P(f"Avg {pw_wo['Parent_TTR_Days'].mean():.1f}d · Med {pw_wo['Parent_TTR_Days'].median():.1f}d" if len(pw_wo)>0 else 'No cases',
+                            html.P(f"Avg {float(pw_wo['Parent_TTR_Days'].mean()):.1f}d · Med {float(pw_wo['Parent_TTR_Days'].median()):.1f}d" if len(pw_wo)>0 else 'No cases',
                                    style={'fontSize':'0.8rem','color':C['grey'],'margin':0}),
                         ]), style={**CARD_STYLE,'borderLeft':'4px solid #889DB5'}), md=3),
                         dbc.Col(dbc.Card(dbc.CardBody([
@@ -590,7 +590,7 @@ def generate(n_clicks, f1, f2, f3):
            className='nav-tabs'),
     ])
 
-    return None, dashboard, {'display':'block'}, html.Span('✅ Report generated successfully', style={'color':C['green']})
+    return {'generated': True}, dashboard, {'display':'block'}, html.Span('✅ Report generated successfully', style={'color':C['green']})
 
 
 
