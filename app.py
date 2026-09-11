@@ -271,7 +271,18 @@ def generate(n_clicks, f1, f2, f3):
     try:
         d = process_data(parse_upload(f1), parse_upload(f2), parse_upload(f3))
     except Exception as e:
-        return None, [], {'display':'none'}, html.Span(f'❌ Error: {str(e)}', style={'color':C['red']})
+        import traceback
+        err_detail = traceback.format_exc()
+        err_div = html.Div([
+            html.H4('❌ Error generating report', style={'color':C['red'],'marginBottom':'8px'}),
+            html.Pre(str(e), style={'background':'#fff0f0','padding':'12px','borderRadius':'6px',
+                                    'fontSize':'0.85rem','border':'1px solid #ffcccc','whiteSpace':'pre-wrap'}),
+            html.Details([
+                html.Summary('Full traceback', style={'cursor':'pointer','color':C['grey'],'fontSize':'0.8rem'}),
+                html.Pre(err_detail, style={'fontSize':'0.75rem','marginTop':'8px'}),
+            ]),
+        ], style={'padding':'24px'})
+        return None, err_div, {'display':'block'}, html.Span(f'❌ Error — see details below', style={'color':C['red']})
 
     df3      = d['df3']
     pw       = d['pw']
@@ -293,7 +304,7 @@ def generate(n_clicks, f1, f2, f3):
                 html.P(label, style={'fontSize':'0.72rem','color':C['grey'],'margin':0,'fontWeight':600,'textTransform':'uppercase','letterSpacing':'0.5px'}),
                 html.H3(value, style={'color':color,'margin':'4px 0 0 0','fontWeight':700,'fontSize':'1.5rem'}),
             ])
-        ], style={**CARD_STYLE,'background':bg,'borderLeft':f'4px solid {color}'}), md=True)
+        ], style={**CARD_STYLE,'background':bg,'borderLeft':f'4px solid {color}'}))
 
     outlier_color = C['red'] if n_out > 0 else C['green']
     outlier_bg    = '#FFF0F0' if n_out > 0 else '#F0FFF4'
